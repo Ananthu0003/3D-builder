@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.vscode/
+*.log
+uploads/
+venv_fix_resolved/
