@@ -12,12 +12,23 @@ def build_wall(element):
     return wp
 
 
+def build_plate(element):
+    pts = element["geometry_2d"]
+    height = element["height"]
+    wp = cq.Workplane("XY")
+    wp = wp.polyline(pts).close().extrude(height)
+    return wp
+
+
 def build_all_elements(elements):
     solids = []
 
     for elem in elements:
         if elem["primitive_type"] == "wall":
             solid = build_wall(elem)
+            solids.append(solid)
+        elif elem["primitive_type"] == "plate":
+            solid = build_plate(elem)
             solids.append(solid)
 
     return solids

@@ -9,7 +9,7 @@ from ai_engine.deduplicate import deduplicate_lines
 from ai_engine.skeleton import build_skeleton
 from ai_engine.snap import snap_wall_endpoints
 from ai_engine.topology import split_lines_at_intersections, remove_isolated_segments, detect_rooms_from_walls
-from ai_engine.postprocess import geometry_from_polylines, save_geometry_json
+from ai_engine.postprocess import geometry_from_polylines, save_geometry_json, plates_from_rooms
 from geometry_engine.main import generate_stl
 import cv2
 
@@ -89,26 +89,26 @@ def main():
         if poly:
             polylines.append(poly)
 
-    geometry = geometry_from_polylines(polylines, height=config.HEIGHT, thickness=config.THICKNESS)
+    # ---- TOPOLOGY ENGINE (Detect Rooms/Plates) ----
+    print("[PIPELINE] Detecting rooms...")
+    rooms = detect_rooms_from_walls(skeleton)
+    print(f"[TOPOLOGY] Found {len(rooms)} rooms.")
+    plates = plates_from_rooms(rooms, plate_thickness=config.PLATE_HEIGHT)
+
+    # ---- POST-PROCESS ----
+    geometry = geometry_from_polylines(polylines, plates=plates, height=config.HEIGHT, thickness=config.THICKNESS)
     
     # Ensure output dirs
     os.makedirs(os.path.dirname(config.GEOMETRY_JSON_PATH), exist_ok=True)
     save_geometry_json(geometry, config.GEOMETRY_JSON_PATH)
 
-    import json
-
-    # ---- TOPOLOGY ENGINE ----
-    print("[PIPELINE] Detecting rooms...")
-    rooms = detect_rooms_from_walls(skeleton)
-    print(f"[TOPOLOGY] Found {len(rooms)} rooms.")
-
-    # Save rooms to JSON for debugging
+    # Save rooms metadata for debugging
     import json
     rooms_data = [{"id": f"room_{i}", "polygon": room} for i, room in enumerate(rooms)]
     rooms_json_path = os.path.join(os.path.dirname(config.GEOMETRY_JSON_PATH), "rooms.json")
     with open(rooms_json_path, 'w') as f:
         json.dump(rooms_data, f, indent=2)
-    print(f"[TOPOLOGY] Saved rooms to: {rooms_json_path}")
+    print(f"[TOPOLOGY] Saved rooms metadata to: {rooms_json_path}")
     
 
     # ---- GEOMETRY ENGINE ----

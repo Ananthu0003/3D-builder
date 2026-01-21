@@ -18,3 +18,4 @@ BLENDER_PATH = r"C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
 SCALE = 0.05
 THICKNESS = 0.5
 HEIGHT = 5.0
+PLATE_HEIGHT = 0.2
