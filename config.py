@@ -4,16 +4,10 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Input/Output Config
-DEFAULT_INPUT_IMAGE = os.path.join(BASE_DIR, "uploads", "blueprints", "blueprint.png")
+DEFAULT_INPUT_IMAGE = os.path.join(BASE_DIR, "uploads", "blueprints", "bluprnt.png")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 GEOMETRY_JSON_PATH = os.path.join(OUTPUT_DIR, "data", "geometry.json")
 MERGED_STL_PATH = os.path.join(OUTPUT_DIR, "stl", "merged.stl")
-BLENDER_MODEL_PATH = os.path.join(OUTPUT_DIR, "blender", "model.blend")
-
-# Paths to External Tools
-# User's Blender path. Modify this if running on a different machine.
-BLENDER_PATH = r"C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
-ENABLE_BLENDER = False # Set to True to run the Blender rendering pipeline
 
 # Viewer Config
 VIEWER_MODEL_PATH = "output/stl/merged.stl"
