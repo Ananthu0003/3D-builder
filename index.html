@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Model Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #2c3e50 0%, #000000 100%);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      padding: 15px 25px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+
+    .ui-panel {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      z-index: 10;
+    }
+
+    .control-group {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      color: white;
+    }
+
+    .group-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+      opacity: 0.6;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .view-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .dimensions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .dim-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .dim-val {
+      font-family: 'JetBrains Mono', monospace;
+      color: #00d2ff;
+    }
+
+    select.unit-select {
+      background: transparent;
+      border: none;
+      color: #00d2ff;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      outline: none;
+    }
+
+    select.unit-select option {
+      background: #1a1a1a;
+      color: white;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <div id="info">
+    <h1 style="margin:0; font-size: 1.2rem; font-weight: 500;">3D Model Viewer</h1>
+    <p style="margin: 5px 0 0; font-size: 0.8rem; opacity: 0.7;">Rotate: Left Click | Zoom: Scroll | Pan: Right Click
+    </p>
+  </div>
+
+  <div class="ui-panel">
+    <!-- View Selection -->
+    <div class="control-group">
+      <div class="group-title">Views</div>
+      <div class="view-grid">
+        <button class="btn" onclick="setView('top')">Top</button>
+        <button class="btn" onclick="setView('bottom')">Btm</button>
+        <button class="btn" onclick="setView('front')">Front</button>
+        <button class="btn" onclick="setView('back')">Back</button>
+        <button class="btn" onclick="setView('left')">Left</button>
+        <button class="btn" onclick="setView('right')">Right</button>
+        <button class="btn" style="grid-column: span 3;" onclick="setView('iso')">Perspective (ISO)</button>
+      </div>
+    </div>
+
+    <!-- Dimensions -->
+    <div class="control-group" id="dimensions-panel" style="display: none;">
+      <div class="group-title">
+        Measurement
+        <select class="unit-select" id="unit-selector" onchange="window.updateUnit()">
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+          <option value="m">m</option>
+          <option value="in">in</option>
+        </select>
+      </div>
+      <div class="dimensions-list">
+        <div class="dim-item"><span>Width (X):</span> <span><span class="dim-val" id="dim-x">-</span> <small
+              class="unit-label">mm</small></span></div>
+        <div class="dim-item"><span>Length (Y):</span> <span><span class="dim-val" id="dim-y">-</span> <small
+              class="unit-label">mm</small></span></div>
+        <div class="dim-item"><span>Height (Z):</span> <span><span class="dim-val" id="dim-z">-</span> <small
+              class="unit-label">mm</small></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Use importmap for clean imports -->
+  <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+    let scene, camera, renderer, controls, mesh;
+    let currentModelSize = new THREE.Vector3();
+
+    init();
+    animate();
+
+    function init() {
+      // SCENE
+      scene = new THREE.Scene();
+
+      // CAMERA
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(5, 5, 5);
+
+      // RENDERER
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.shadowMap.enabled = true;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
+      document.body.appendChild(renderer.domElement);
+
+      // CONTROLS
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      // LIGHTS
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      keyLight.position.set(5, 10, 5);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      fillLight.position.set(-5, 5, -5);
+      scene.add(fillLight);
+
+      const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+      rimLight.position.set(0, 5, -10);
+      scene.add(rimLight);
+
+      // HELPERS
+      const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+      scene.add(gridHelper);
+      gridHelper.material.opacity = 0.35;
+      gridHelper.material.transparent = true;
+
+      // LOADER
+      const loader = new STLLoader();
+      loader.load(
+        'output/stl/merged.stl',
+        function (geometry) {
+          const material = new THREE.MeshStandardMaterial({
+            color: 0xcccccc,
+            roughness: 0.5,
+            metalness: 0.2,
+            flatShading: true
+          });
+          mesh = new THREE.Mesh(geometry, material);
+
+          // Rotate and Position model on grid
+          // By default Three.js is Y-Up. Our model is Z-Up.
+          mesh.rotation.x = -Math.PI / 2;
+
+          geometry.computeBoundingBox();
+          const box = geometry.boundingBox;
+          const center = new THREE.Vector3();
+          box.getCenter(center);
+
+          // Position relative to origin after 90deg X rotation:
+          // Local X -> World X
+          // Local Y -> World -Z
+          // Local Z -> World Y
+          mesh.position.set(-center.x, -box.min.z, center.y);
+
+          // Dimensions (from local box to match config definitions)
+          currentModelSize = new THREE.Vector3();
+          box.getSize(currentModelSize);
+          window.updateDisplay();
+
+          // Auto-fit
+          const maxDim = Math.max(currentModelSize.x, currentModelSize.y, currentModelSize.z);
+          const fov = camera.fov * (Math.PI / 180);
+          let cameraDistance = Math.abs(maxDim / Math.sin(fov / 2)) * 1.5;
+
+          camera.position.set(cameraDistance, cameraDistance * 0.8, cameraDistance);
+          controls.target.set(0, 0, 0);
+          controls.update();
+
+          scene.add(mesh);
+          console.log('STL Model loaded successfully');
+        },
+        function (xhr) {
+          console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function (error) {
+          console.error('An error happened while loading the model:', error);
+          const geometry = new THREE.BoxGeometry(1, 1, 1);
+          const material = new THREE.MeshStandardMaterial({ color: 0x0077ff });
+          const cube = new THREE.Mesh(geometry, material);
+          scene.add(cube);
+          currentModelSize.set(1, 1, 1);
+          window.updateDisplay();
+        }
+      );
+
+      // RESIZE
+      window.addEventListener('resize', onWindowResize);
+    }
+
+    // Measurement Logic
+    window.updateUnit = function () {
+      window.updateDisplay();
+    };
+
+    window.updateDisplay = function () {
+      const selector = document.getElementById('unit-selector');
+      const unit = selector.value;
+      const labels = document.querySelectorAll('.unit-label');
+
+      let factor = 1;
+      switch (unit) {
+        case 'cm': factor = 0.1; break;
+        case 'm': factor = 0.001; break;
+        case 'in': factor = 0.0393701; break;
+        default: factor = 1; // mm
+      }
+
+      document.getElementById('dimensions-panel').style.display = 'block';
+      document.getElementById('dim-x').innerText = (currentModelSize.x * factor).toFixed(2);
+      document.getElementById('dim-y').innerText = (currentModelSize.y * factor).toFixed(2);
+      document.getElementById('dim-z').innerText = (currentModelSize.z * factor).toFixed(2);
+
+      labels.forEach(l => l.innerText = unit);
+    }
+
+    // Expose setView to global scope
+    window.setView = function (view) {
+      if (!mesh) return;
+
+      const box = new THREE.Box3().setFromObject(mesh);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const dist = maxDim * 2;
+
+      let pos = new THREE.Vector3();
+
+      switch (view) {
+        case 'top': pos.set(0, dist, 0); break;
+        case 'bottom': pos.set(0, -dist, 0); break;
+        case 'front': pos.set(0, 0, dist); break;
+        case 'back': pos.set(0, 0, -dist); break;
+        case 'left': pos.set(-dist, 0, 0); break;
+        case 'right': pos.set(dist, 0, 0); break;
+        case 'iso': pos.set(dist, dist, dist); break;
+      }
+
+      camera.position.copy(pos);
+      camera.lookAt(0, 0, 0);
+      controls.target.set(0, 0, 0);
+      controls.update();
+    };
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+
+</html>

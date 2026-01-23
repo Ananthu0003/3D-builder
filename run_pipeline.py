@@ -116,26 +116,29 @@ def main():
     generate_stl(config.GEOMETRY_JSON_PATH, config.MERGED_STL_PATH)
 
     # ---- BLENDER PIPELINE ----
-    print("[PIPELINE] Running Blender...")
-    blender_script = os.path.join(config.BASE_DIR, "blender_pipeline", "import_stl.py")
-    
-    cmd = [
-        config.BLENDER_PATH,
-        "--background",
-        "--factory-startup",
-        "--python", blender_script,
-        "--", # Separator for script args
-        config.MERGED_STL_PATH,
-        config.BLENDER_MODEL_PATH
-    ]
-    
-    try:
-        subprocess.run(cmd, check=True)
-    except FileNotFoundError:
-        print(f"[ERROR] Blender not found at: {config.BLENDER_PATH}")
-        print("Please update config.py with your Blender path.")
-    except subprocess.CalledProcessError as e:
-        print(f"[ERROR] Blender process failed with code {e.returncode}")
+    if config.ENABLE_BLENDER:
+        print("[PIPELINE] Running Blender...")
+        blender_script = os.path.join(config.BASE_DIR, "blender_pipeline", "import_stl.py")
+        
+        cmd = [
+            config.BLENDER_PATH,
+            "--background",
+            "--factory-startup",
+            "--python", blender_script,
+            "--", # Separator for script args
+            config.MERGED_STL_PATH,
+            config.BLENDER_MODEL_PATH
+        ]
+        
+        try:
+            subprocess.run(cmd, check=True)
+        except FileNotFoundError:
+            print(f"[ERROR] Blender not found at: {config.BLENDER_PATH}")
+            print("Please update config.py with your Blender path.")
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] Blender process failed with code {e.returncode}")
+    else:
+        print("[PIPELINE] Blender rendering skipped (disabled in config.py)")
 
     print("[PIPELINE] DONE")
 

@@ -1,5 +1,3 @@
-# geometry_engine/builder.py
-
 import cadquery as cq
 
 
