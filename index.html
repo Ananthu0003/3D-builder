@@ -2,15 +2,16 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>3D Model Viewer</title>
+
   <style>
     body {
       margin: 0;
       overflow: hidden;
       background: radial-gradient(circle at center, #2c3e50 0%, #000000 100%);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: Inter, system-ui, sans-serif;
     }
 
     #info {
@@ -18,13 +19,11 @@
       top: 20px;
       left: 20px;
       color: white;
-      padding: 15px 25px;
+      padding: 14px 22px;
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
       border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      pointer-events: none;
-      transition: opacity 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.15);
       z-index: 10;
     }
 
@@ -42,21 +41,19 @@
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
       border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 14px;
       color: white;
     }
 
     .group-title {
       font-size: 0.75rem;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 10px;
       opacity: 0.6;
-      font-weight: 600;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      margin-bottom: 10px;
     }
 
     .view-grid {
@@ -67,67 +64,65 @@
 
     .btn {
       background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       color: white;
       padding: 8px;
       border-radius: 6px;
       font-size: 0.75rem;
       cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: inherit;
     }
 
     .btn:hover {
       background: rgba(255, 255, 255, 0.2);
-      border-color: rgba(255, 255, 255, 0.4);
     }
 
     .dimensions-list {
+      font-size: 0.85rem;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      font-size: 0.85rem;
-    }
-
-    .dim-item {
-      display: flex;
-      justify-content: space-between;
-      gap: 20px;
+      gap: 6px;
     }
 
     .dim-val {
-      font-family: 'JetBrains Mono', monospace;
       color: #00d2ff;
+      font-family: monospace;
     }
 
-    select.unit-select {
+    select {
       background: transparent;
       border: none;
       color: #00d2ff;
-      font-size: 0.75rem;
       cursor: pointer;
-      font-family: inherit;
-      outline: none;
     }
 
-    select.unit-select option {
-      background: #1a1a1a;
-      color: white;
+    #selection-label {
+      font-size: 0.8rem;
+      margin-bottom: 5px;
+      color: #00d2ff;
+      font-weight: 500;
+      display: none;
     }
   </style>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap"
-    rel="stylesheet">
+
+  <!-- Import map -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 
 <body>
+
   <div id="info">
-    <h1 style="margin:0; font-size: 1.2rem; font-weight: 500;">3D Model Viewer</h1>
-    <p style="margin: 5px 0 0; font-size: 0.8rem; opacity: 0.7;">Rotate: Left Click | Zoom: Scroll | Pan: Right Click
-    </p>
+    <strong>3D Model Viewer</strong><br>
+    Rotate: Left | Zoom: Scroll | Pan: Right
   </div>
 
   <div class="ui-panel">
-    <!-- View Selection -->
     <div class="control-group">
       <div class="group-title">Views</div>
       <div class="view-grid">
@@ -137,217 +132,272 @@
         <button class="btn" onclick="setView('back')">Back</button>
         <button class="btn" onclick="setView('left')">Left</button>
         <button class="btn" onclick="setView('right')">Right</button>
-        <button class="btn" style="grid-column: span 3;" onclick="setView('iso')">Perspective (ISO)</button>
+        <button class="btn" style="grid-column:span 3" onclick="setView('iso')">ISO</button>
       </div>
     </div>
 
-    <!-- Dimensions -->
-    <div class="control-group" id="dimensions-panel" style="display: none;">
+    <div class="control-group" id="dimensions-panel" style="display:none;">
       <div class="group-title">
         Measurement
-        <select class="unit-select" id="unit-selector" onchange="window.updateUnit()">
+        <select id="unit" onchange="updateDisplay()">
           <option value="mm">mm</option>
           <option value="cm">cm</option>
           <option value="m">m</option>
           <option value="in">in</option>
         </select>
       </div>
+      <div id="selection-label">Overall Building</div>
       <div class="dimensions-list">
-        <div class="dim-item"><span>Width (X):</span> <span><span class="dim-val" id="dim-x">-</span> <small
-              class="unit-label">mm</small></span></div>
-        <div class="dim-item"><span>Length (Y):</span> <span><span class="dim-val" id="dim-y">-</span> <small
-              class="unit-label">mm</small></span></div>
-        <div class="dim-item"><span>Height (Z):</span> <span><span class="dim-val" id="dim-z">-</span> <small
-              class="unit-label">mm</small></span></div>
+        X: <span class="dim-val" id="dx"></span><br>
+        Y: <span class="dim-val" id="dy"></span><br>
+        Z: <span class="dim-val" id="dz"></span>
       </div>
     </div>
   </div>
-
-  <!-- Use importmap for clean imports -->
-  <script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-    }
-    </script>
 
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-    let scene, camera, renderer, controls, mesh;
-    let currentModelSize = new THREE.Vector3();
+    /* CORE */
+    let scene, camera, renderer, controls;
+    let modelGroup = new THREE.Group();
+    let overallBoundingBox = new THREE.Box3();
+    let selectedObject = null;
+    let currentPartSize = new THREE.Vector3();
+    let overallModelSize = new THREE.Vector3();
+
+    /* RAYCAST */
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let highlightEdges = null;
 
     init();
     animate();
 
+    /* ---------- INIT ---------- */
     function init() {
-      // SCENE
       scene = new THREE.Scene();
+      scene.add(modelGroup);
 
-      // CAMERA
-      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(5, 5, 5);
+      camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
+      camera.position.set(50, 50, 50);
 
-      // RENDERER
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.shadowMap.enabled = true;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.setPixelRatio(devicePixelRatio);
       document.body.appendChild(renderer.domElement);
 
-      // CONTROLS
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
 
-      // LIGHTS
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-      scene.add(ambientLight);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-      const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
-      keyLight.position.set(5, 10, 5);
-      scene.add(keyLight);
+      const sun = new THREE.DirectionalLight(0xffffff, 1);
+      sun.position.set(50, 100, 50);
+      scene.add(sun);
 
-      const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
-      fillLight.position.set(-5, 5, -5);
-      scene.add(fillLight);
+      const fill = new THREE.DirectionalLight(0xffffff, 0.5);
+      fill.position.set(-50, 50, -50);
+      scene.add(fill);
 
-      const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
-      rimLight.position.set(0, 5, -10);
-      scene.add(rimLight);
+      const grid = new THREE.GridHelper(100, 50);
+      grid.material.opacity = 0.2;
+      grid.material.transparent = true;
+      scene.add(grid);
 
-      // HELPERS
-      const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
-      scene.add(gridHelper);
-      gridHelper.material.opacity = 0.35;
-      gridHelper.material.transparent = true;
+      loadAllParts();
 
-      // LOADER
-      const loader = new STLLoader();
-      loader.load(
-        'output/stl/merged.stl',
-        function (geometry) {
-          const material = new THREE.MeshStandardMaterial({
-            color: 0xcccccc,
-            roughness: 0.5,
-            metalness: 0.2,
-            flatShading: true
-          });
-          mesh = new THREE.Mesh(geometry, material);
-
-          // Rotate and Position model on grid
-          // By default Three.js is Y-Up. Our model is Z-Up.
-          mesh.rotation.x = -Math.PI / 2;
-
-          geometry.computeBoundingBox();
-          const box = geometry.boundingBox;
-          const center = new THREE.Vector3();
-          box.getCenter(center);
-
-          // Position relative to origin after 90deg X rotation:
-          // Local X -> World X
-          // Local Y -> World -Z
-          // Local Z -> World Y
-          mesh.position.set(-center.x, -box.min.z, center.y);
-
-          // Dimensions (from local box to match config definitions)
-          currentModelSize = new THREE.Vector3();
-          box.getSize(currentModelSize);
-          window.updateDisplay();
-
-          // Auto-fit
-          const maxDim = Math.max(currentModelSize.x, currentModelSize.y, currentModelSize.z);
-          const fov = camera.fov * (Math.PI / 180);
-          let cameraDistance = Math.abs(maxDim / Math.sin(fov / 2)) * 1.5;
-
-          camera.position.set(cameraDistance, cameraDistance * 0.8, cameraDistance);
-          controls.target.set(0, 0, 0);
-          controls.update();
-
-          scene.add(mesh);
-          console.log('STL Model loaded successfully');
-        },
-        function (xhr) {
-          console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-        },
-        function (error) {
-          console.error('An error happened while loading the model:', error);
-          const geometry = new THREE.BoxGeometry(1, 1, 1);
-          const material = new THREE.MeshStandardMaterial({ color: 0x0077ff });
-          const cube = new THREE.Mesh(geometry, material);
-          scene.add(cube);
-          currentModelSize.set(1, 1, 1);
-          window.updateDisplay();
-        }
-      );
-
-      // RESIZE
-      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('resize', onResize);
+      window.addEventListener('click', onClick);
     }
 
-    // Measurement Logic
-    window.updateUnit = function () {
-      window.updateDisplay();
-    };
+    /* ---------- LOADING ---------- */
+    async function loadAllParts() {
+      const stlLoader = new STLLoader();
 
-    window.updateDisplay = function () {
-      const selector = document.getElementById('unit-selector');
-      const unit = selector.value;
-      const labels = document.querySelectorAll('.unit-label');
+      try {
+        const response = await fetch('output/data/geometry.json');
+        const data = await response.json();
 
-      let factor = 1;
-      switch (unit) {
-        case 'cm': factor = 0.1; break;
-        case 'm': factor = 0.001; break;
-        case 'in': factor = 0.0393701; break;
-        default: factor = 1; // mm
+        let loadedCount = 0;
+
+        for (const element of data.elements) {
+          stlLoader.load(`output/stl/${element.id}.stl`, geo => {
+            const mat = new THREE.MeshStandardMaterial({
+              color: 0xcccccc,
+              roughness: 0.6,
+              metalness: 0.1,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 1.0
+            });
+
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = -Math.PI / 2;
+
+            mesh.userData = {
+              id: element.id,
+              type: element.primitive_type
+            };
+
+            modelGroup.add(mesh);
+
+            loadedCount++;
+            if (loadedCount === data.elements.length) {
+              finalizeScene();
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load parts', err);
       }
+    }
+
+    function finalizeScene() {
+      overallBoundingBox = new THREE.Box3();
+      modelGroup.traverse(obj => {
+        if (obj.isMesh) {
+          const box = new THREE.Box3().setFromObject(obj);
+          overallBoundingBox.union(box);
+        }
+      });
+
+      const center = new THREE.Vector3();
+      overallBoundingBox.getCenter(center);
+
+      // Center group on grid
+      modelGroup.position.set(-center.x, -overallBoundingBox.min.y, -center.z);
+
+      overallBoundingBox.getSize(overallModelSize);
+
+      // Default display
+      resetToOverall();
+      fitCamera();
+    }
+
+    function fitCamera() {
+      const max = Math.max(overallModelSize.x, overallModelSize.y, overallModelSize.z);
+      const d = max * 2;
+      camera.position.set(d, d, d);
+      controls.target.set(0, overallModelSize.y / 2, 0);
+      controls.update();
+    }
+
+    /* ---------- SELECTION ---------- */
+    function onClick(event) {
+      if (event.target !== renderer.domElement) return;
+
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(modelGroup.children);
+
+      if (hits.length > 0) {
+        selectObject(hits[0].object);
+      } else {
+        deselectAll();
+      }
+    }
+
+    function selectObject(obj) {
+      if (selectedObject === obj) return;
+
+      selectedObject = obj;
+
+      // Apply Ghost Mode and Glow
+      modelGroup.traverse(child => {
+        if (child.isMesh) {
+          if (child === obj) {
+            // Highlight selected with emissive glow
+            child.material.emissive.setHex(0x00d2ff);
+            child.material.emissiveIntensity = 0.5;
+            child.material.opacity = 1.0;
+          } else {
+            // Ghost unselected parts
+            child.material.emissive.setHex(0x000000);
+            child.material.opacity = 0.25;
+          }
+        }
+      });
+
+      // Get size of this specific part
+      const box = new THREE.Box3().setFromObject(obj);
+      box.getSize(currentPartSize);
+
+      // Update UI
+      const label = document.getElementById('selection-label');
+      label.style.display = 'block';
+      label.textContent = obj.userData.id.split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+
+      updateDisplay(currentPartSize);
+    }
+
+    function deselectAll() {
+      selectedObject = null;
+
+      // Reset all materials
+      modelGroup.traverse(child => {
+        if (child.isMesh) {
+          child.material.emissive.setHex(0x000000);
+          child.material.emissiveIntensity = 0;
+          child.material.opacity = 1.0;
+        }
+      });
+
+      resetToOverall();
+    }
+
+    function resetToOverall() {
+      const label = document.getElementById('selection-label');
+      label.style.display = 'block';
+      label.textContent = 'Overall Building';
+      updateDisplay(overallModelSize);
+    }
+
+    /* ---------- UI & MEASURE ---------- */
+    window.updateDisplay = function (size) {
+      if (!size) size = selectedObject ? currentPartSize : overallModelSize;
+
+      const unitEl = document.getElementById('unit');
+      if (!unitEl) return;
+      const u = unitEl.value;
+      const f = u === 'cm' ? 0.1 : u === 'm' ? 0.001 : u === 'in' ? 0.03937 : 1;
+
+      document.getElementById('dx').textContent = (size.x * f).toFixed(2) + ' ' + u;
+      document.getElementById('dy').textContent = (size.z * f).toFixed(2) + ' ' + u;
+      document.getElementById('dz').textContent = (size.y * f).toFixed(2) + ' ' + u;
 
       document.getElementById('dimensions-panel').style.display = 'block';
-      document.getElementById('dim-x').innerText = (currentModelSize.x * factor).toFixed(2);
-      document.getElementById('dim-y').innerText = (currentModelSize.y * factor).toFixed(2);
-      document.getElementById('dim-z').innerText = (currentModelSize.z * factor).toFixed(2);
-
-      labels.forEach(l => l.innerText = unit);
     }
 
-    // Expose setView to global scope
-    window.setView = function (view) {
-      if (!mesh) return;
+    /* ---------- VIEW ---------- */
+    window.setView = function (v) {
+      const d = Math.max(overallModelSize.x, overallModelSize.y, overallModelSize.z) * 2.5;
+      const y = overallModelSize.y / 2;
 
-      const box = new THREE.Box3().setFromObject(mesh);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const dist = maxDim * 2;
+      const positions = {
+        top: [0, d, 0], bottom: [0, -d, 0],
+        front: [0, 0, d], back: [0, 0, -d],
+        left: [-d, 0, 0], right: [d, 0, 0],
+        iso: [d, d, d]
+      };
 
-      let pos = new THREE.Vector3();
-
-      switch (view) {
-        case 'top': pos.set(0, dist, 0); break;
-        case 'bottom': pos.set(0, -dist, 0); break;
-        case 'front': pos.set(0, 0, dist); break;
-        case 'back': pos.set(0, 0, -dist); break;
-        case 'left': pos.set(-dist, 0, 0); break;
-        case 'right': pos.set(dist, 0, 0); break;
-        case 'iso': pos.set(dist, dist, dist); break;
+      const p = positions[v];
+      if (p) {
+        camera.position.set(...p);
+        camera.lookAt(0, y, 0);
+        controls.target.set(0, y, 0);
       }
+    }
 
-      camera.position.copy(pos);
-      camera.lookAt(0, 0, 0);
-      controls.target.set(0, 0, 0);
-      controls.update();
-    };
-
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
+    /* ---------- MISC ---------- */
+    function onResize() {
+      camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(innerWidth, innerHeight);
     }
 
     function animate() {
@@ -356,6 +406,7 @@
       renderer.render(scene, camera);
     }
   </script>
+
 </body>
 
 </html>

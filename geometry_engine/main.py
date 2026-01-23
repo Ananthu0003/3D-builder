@@ -14,13 +14,18 @@ def generate_stl(json_path: str, stl_output_path: str):
         data = json.load(f)
 
     print(f"[GEOMETRY] Building {len(data['elements'])} elements...")
-    solids = build_all_elements(data["elements"])
+    solids_dict = build_all_elements(data["elements"])
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(stl_output_path), exist_ok=True)
 
-    print(f"[GEOMETRY] Exporting to {stl_output_path}...")
-    export_stl(solids, stl_output_path)
+    print(f"[GEOMETRY] Exporting merged model to {stl_output_path}...")
+    export_stl(solids_dict, stl_output_path)
+
+    # Export individual parts
+    from geometry_engine.exporter import export_individual_stls
+    parts_dir = os.path.dirname(stl_output_path)
+    export_individual_stls(solids_dict, parts_dir)
 
 if __name__ == "__main__":
     # Default behavior for standalone execution (for backward compatibility or testing)

@@ -19,14 +19,15 @@ def build_plate(element):
 
 
 def build_all_elements(elements):
-    solids = []
+    result = {}
 
     for elem in elements:
+        elem_id = elem["id"]
         if elem["primitive_type"] == "wall":
             solid = build_wall(elem)
-            solids.append(solid)
+            result[elem_id] = solid
         elif elem["primitive_type"] == "plate":
             solid = build_plate(elem)
-            solids.append(solid)
+            result[elem_id] = solid
 
-    return solids
+    return result
