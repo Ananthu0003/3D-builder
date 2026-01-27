@@ -102,6 +102,18 @@
       font-weight: 500;
       display: none;
     }
+
+    /* Toggle Switch */
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 0.8rem;
+    }
+
+    .toggle-container input {
+      margin-right: 8px;
+    }
   </style>
 
   <!-- Import map -->
@@ -119,7 +131,8 @@
 
   <div id="info">
     <strong>3D Model Viewer</strong><br>
-    Rotate: Left | Zoom: Scroll | Pan: Right
+    Rotate: Left | Zoom: Scroll | Pan: Right<br>
+    <span style="font-size:0.8em; opacity:0.8;">Click part to Move</span>
   </div>
 
   <div class="ui-panel">
@@ -134,6 +147,11 @@
         <button class="btn" onclick="setView('right')">Right</button>
         <button class="btn" style="grid-column:span 3" onclick="setView('iso')">ISO</button>
       </div>
+    </div>
+
+    <div class="control-group">
+      <div class="group-title">Actions</div>
+      <button class="btn" style="width:100%" onclick="resetPositions()">Reset Positions</button>
     </div>
 
     <div class="control-group" id="dimensions-panel" style="display:none;">
@@ -158,20 +176,24 @@
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { TransformControls } from 'three/addons/controls/TransformControls.js';
     import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
     /* CORE */
-    let scene, camera, renderer, controls;
+    let scene, camera, renderer, controls, transformControl;
     let modelGroup = new THREE.Group();
     let overallBoundingBox = new THREE.Box3();
     let selectedObject = null;
     let currentPartSize = new THREE.Vector3();
     let overallModelSize = new THREE.Vector3();
 
+    // Store original positions/rotations for reset
+    // Key: uuid, Value: { pos, rot }
+    let originalTransforms = {};
+
     /* RAYCAST */
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-    let highlightEdges = null;
 
     init();
     animate();
@@ -191,6 +213,13 @@
 
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
+
+      // Transform Controls
+      transformControl = new TransformControls(camera, renderer.domElement);
+      transformControl.addEventListener('dragging-changed', function (event) {
+        controls.enabled = !event.value;
+      });
+      scene.add(transformControl);
 
       scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
@@ -235,6 +264,7 @@
             });
 
             const mesh = new THREE.Mesh(geo, mat);
+            // Default rotation from stl export usually needs adjustment if Y-up vs Z-up
             mesh.rotation.x = -Math.PI / 2;
 
             mesh.userData = {
@@ -243,6 +273,15 @@
             };
 
             modelGroup.add(mesh);
+
+            // Store for reset
+            // We need to store AFTER adding? Actually position is 0,0,0 usually for these STL parts
+            // but let's capture it anyway.
+            originalTransforms[mesh.uuid] = {
+              position: mesh.position.clone(),
+              rotation: mesh.rotation.clone(),
+              scale: mesh.scale.clone()
+            };
 
             loadedCount++;
             if (loadedCount === data.elements.length) {
@@ -287,6 +326,8 @@
 
     /* ---------- SELECTION ---------- */
     function onClick(event) {
+      // Prevent selection if we are dragging the transform gizmo
+      if (transformControl.dragging) return;
       if (event.target !== renderer.domElement) return;
 
       mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -306,6 +347,9 @@
       if (selectedObject === obj) return;
 
       selectedObject = obj;
+
+      // Attach Transform Controls
+      transformControl.attach(obj);
 
       // Apply Ghost Mode and Glow
       modelGroup.traverse(child => {
@@ -337,6 +381,7 @@
 
     function deselectAll() {
       selectedObject = null;
+      transformControl.detach();
 
       // Reset all materials
       modelGroup.traverse(child => {
@@ -355,6 +400,20 @@
       label.style.display = 'block';
       label.textContent = 'Overall Building';
       updateDisplay(overallModelSize);
+    }
+
+    // Global function for buttons
+    window.resetPositions = function () {
+      modelGroup.traverse(child => {
+        if (child.isMesh && originalTransforms[child.uuid]) {
+          const og = originalTransforms[child.uuid];
+          child.position.copy(og.position);
+          child.rotation.copy(og.rotation);
+          child.scale.copy(og.scale);
+        }
+      });
+      // Also detach if anything was selected to act clean
+      deselectAll();
     }
 
     /* ---------- UI & MEASURE ---------- */
