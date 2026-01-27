@@ -1,16 +1,33 @@
-def cluster_lines(lines, pos_tol=12, gap_tol=40):
+import numpy as np
+
+def cluster_lines(lines, pos_tol=12, gap_tol=40, angle_tol=15):
     horizontal = []
     vertical = []
+    diagonal = []
     
     for x1, y1, x2, y2 in lines:
-        if abs(y2 - y1) <= abs(x2 - x1): # Horizontal
+        dx, dy = x2 - x1, y2 - y1
+        angle = abs(np.degrees(np.arctan2(dy, dx)))
+        
+        # Categorize
+        if angle < angle_tol or abs(angle - 180) < angle_tol:
+            # Horizontal-ish
             y_avg = (y1 + y2) / 2
             horizontal.append((min(x1, x2), y_avg, max(x1, x2), y_avg))
-        else: # Vertical
+        elif abs(angle - 90) < angle_tol:
+            # Vertical-ish
             x_avg = (x1 + x2) / 2
             vertical.append((x_avg, min(y1, y2), x_avg, max(y1, y2)))
+        else:
+            # Diagonal or Curve segment - keep original
+            diagonal.append((x1, y1, x2, y2))
 
     clusters = []
+    
+    # Treat each diagonal segment as its own cluster for now
+    # (In a more advanced version, we could cluster nearby parallel diagonals)
+    for d in diagonal:
+        clusters.append([d])
     
     # Cluster horizontal
     placed_h = [False] * len(horizontal)

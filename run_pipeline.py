@@ -59,7 +59,7 @@ def main():
         cv2.imwrite(debug_out_path, debug_img)
         print(f"[DEBUG] Saved detection debug image to: {debug_out_path}")
 
-    lines = filter_axis_aligned(lines)
+    lines = filter_axis_aligned(lines, aligned_only=False)
     lines = filter_short_lines(lines)
     lines = normalize_lines(lines)
     lines = deduplicate_lines(lines)
